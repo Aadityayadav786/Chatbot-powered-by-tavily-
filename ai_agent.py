@@ -1,0 +1,35 @@
+from dotenv import load_dotenv
+load_dotenv()
+
+import os
+from langchain_groq import ChatGroq
+from langchain_community.tools.tavily_search import TavilySearchResults
+from langgraph.prebuilt import create_react_agent
+from langchain_core.messages.ai import AIMessage
+
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+
+def get_response_from_ai_agent(llm_id, query, allow_search, system_prompt, provider):
+    if provider == "Groq":
+        llm = ChatGroq(model=llm_id)
+    else:
+        return "Invalid provider"
+
+    tools = [TavilySearchResults(max_results=2)] if allow_search else []
+    
+    agent = create_react_agent(
+        model=llm,
+        tools=tools,
+        state_modifier=system_prompt
+    )
+
+    state = {"messages": [query]}  # Ensure query is in a list
+    response = agent.invoke(state)
+
+    if response and "messages" in response:
+        messages = response["messages"]
+        ai_messages = [msg.content for msg in messages if isinstance(msg, AIMessage)]
+        return ai_messages[-1] if ai_messages else "No response from AI"
+    
+    return "Error in AI agent response"
